@@ -34,7 +34,13 @@ function clause execute VDOT4A_VV(funct6, vm, vs2, vs1, vd) = {
   let LMUL_pow = get_lmul_pow();
   let num_elem = get_num_elem(LMUL_pow, SEW);
 
-  if illegal_normal(vd, vm) then return Illegal_Instruction();
+  if illegal_vstart(VSTART_ARITH, num_elem, LMUL_pow) |
+     illegal_normal(vd, vm) |
+     not(valid_reg_overlap(vs1, vd, LMUL_pow, LMUL_pow)) |
+     not(valid_reg_group(vs2, LMUL_pow)) |
+     not(valid_vm_src_overlap(vm, vs1, SEW)) |
+     not(valid_vm_src_overlap(vm, vs2, SEW))
+  then return Illegal_Instruction();
 
   let 'n = num_elem;
   let 'm = SEW;
@@ -46,10 +52,7 @@ function clause execute VDOT4A_VV(funct6, vm, vs2, vs1, vd) = {
   let vs2_val : vector('p, bits('q)) = read_vreg('p, 'q, LMUL_pow, vs2);
   let vd_val  : vector('n, bits('m)) = read_vreg(num_elem, SEW, LMUL_pow, vd);
 
-  let (initial_result, mask) : (vector('n, bits('m)), bits('n)) = match init_masked_result(num_elem, SEW, LMUL_pow, vd_val, vm_val) {
-    Ok(v)   => v,
-    Err(()) => return Illegal_Instruction()
-  };
+  let (initial_result, mask) : (vector('n, bits('m)), bits('n)) = init_masked_result(num_elem, SEW, LMUL_pow, vd_val, vm_val);
   var result = initial_result;
 
   foreach (i from 0 to (num_elem - 1)) {
@@ -98,7 +101,11 @@ function clause execute VDOT4A_VX(funct6, vm, vs2, rs1, vd) = {
   let LMUL_pow = get_lmul_pow();
   let num_elem = get_num_elem(LMUL_pow, SEW);
 
-  if illegal_normal(vd, vm) then return Illegal_Instruction();
+  if illegal_vstart(VSTART_ARITH, num_elem, LMUL_pow) |
+     illegal_normal(vd, vm) |
+     not(valid_reg_group(vs2, LMUL_pow)) |
+     not(valid_vm_src_overlap(vm, vs2, SEW))
+  then return Illegal_Instruction();
 
   assert(SEW >= 32);
 
@@ -112,17 +119,15 @@ function clause execute VDOT4A_VX(funct6, vm, vs2, rs1, vd) = {
   let vs2_val : vector('p, bits('q)) = read_vreg('p, 'q, LMUL_pow, vs2);
   let vd_val  : vector('n, bits('m)) = read_vreg(num_elem, SEW, LMUL_pow, vd);
 
+  // Sail vector literals are indexed from the right, so list the bytes from most to least significant.
   let rs1_vector : vector(4, bits('q)) = [
-      rs1_val['q-1 .. 0],
-      rs1_val['q*2-1 .. 'q],
+      rs1_val['q*4-1 .. 'q*3],
       rs1_val['q*3-1 .. 'q*2],
-      rs1_val['q*4-1 .. 'q*3]
+      rs1_val['q*2-1 .. 'q],
+      rs1_val['q-1 .. 0]
   ];
 
-  let (initial_result, mask) : (vector('n, bits('m)), bits('n)) = match init_masked_result(num_elem, SEW, LMUL_pow, vd_val, vm_val) {
-    Ok(v)   => v,
-    Err(()) => return Illegal_Instruction()
-  };
+  let (initial_result, mask) : (vector('n, bits('m)), bits('n)) = init_masked_result(num_elem, SEW, LMUL_pow, vd_val, vm_val);
   var result = initial_result;
 
   foreach (i from 0 to (num_elem - 1)) {
