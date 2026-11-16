@@ -19,6 +19,11 @@ mapping sew_flag : string <-> bits(3) = {
   "e64"   <-> 0b011,
 }
 
+// Element widths with the alternate format (vtype.altfmt) selected.
+mapping sew_flag_alt : string <-> bits(3) = {
+  "e8alt" <-> 0b000,
+}
+
 mapping maybe_lmul_flag : string <-> bits(3) = {
   sep() ^ "mf8"   <-> 0b101,
   sep() ^ "mf4"   <-> 0b110,
@@ -50,6 +55,9 @@ mapping vtype_assembly : (bits(3), bits(1), bits(1), bits(3), bits(3)) <-> strin
   // Mnemonics are preferable but there's no mnemonic for lmul=0b100.
   (vtr, ma, ta, sew, lmul) <-> sew_flag(sew) ^ maybe_lmul_flag(lmul) ^ ta_flag(ta) ^ ma_flag(ma) ^ vtr_mnemonic(vtr)
     when sew[2] != 0b1 & lmul != 0b100 & vtr == 0b000,
+  // vtr[0] is vtype.altfmt.
+  (vtr, ma, ta, sew, lmul) <-> sew_flag_alt(sew) ^ maybe_lmul_flag(lmul) ^ ta_flag(ta) ^ ma_flag(ma) ^ vtr_mnemonic(vtr)
+    when sew == 0b000 & lmul != 0b100 & vtr == 0b001,
   // However that is still potentially a legal instruction so you can
   // use an integer for the whole vtype in that case.
   (vtr, ma, ta, sew, lmul) <-> hex_bits_11(vtr @ ma @ ta @ sew @ lmul)
@@ -91,8 +99,15 @@ private function calculate_new_vl(AVL : xlenbits, VLMAX : range(1, vlen)) -> ran
   } else VLMAX
 }
 
+// Whether vtype.altfmt=1 is supported for the given SEW. If it is not,
+// the vtype setting is reserved.
+private function altfmt_supported(sew : bits(3)) -> bool =
+  // Zvfofp8min: altfmt selects between the OFP8 E4M3 and E5M2 formats when SEW=8.
+  currentlyEnabled(Ext_Zvfofp8min) & sew == 0b000
+
 // Execute vsetvl, vsetvli, or vsetivli.
 private function execute_vsetvl_type(
+  altfmt : bits(1),
   ma : bits(1),
   ta : bits(1),
   sew : bits(3),
@@ -102,7 +117,7 @@ private function execute_vsetvl_type(
   rd : regidx,
 ) -> ExecutionResult = {
   // Check new SEW and LMUL have legal encodings. There are some reserved values.
-  if is_invalid_lmul_pow(lmul) | is_invalid_sew_pow(sew) then {
+  if is_invalid_lmul_pow(lmul) | is_invalid_sew_pow(sew) | (altfmt == 0b1 & not(altfmt_supported(sew))) then {
     return handle_illegal_vtype(rd);
   };
 
@@ -130,6 +145,7 @@ private function execute_vsetvl_type(
 
   vtype = [Mk_Vtype(zeros()) with
     vill = 0b0,
+    altfmt = altfmt,
     vma = ma,
     vta = ta,
     vsew = sew,
@@ -154,7 +170,7 @@ mapping clause encdec = VSETVLI(vtr, ma, ta, sew, lmul, rs1, rd)
   when currentlyEnabled(Ext_Zve32x)
 
 function clause execute VSETVLI(vtr, ma, ta, sew, lmul, rs1, rd) = {
-  if vtr != zeros()
+  if vtr[2 .. 1] != zeros()
   then return handle_illegal_vtype(rd);
 
   let avl =
@@ -164,7 +180,7 @@ function clause execute VSETVLI(vtr, ma, ta, sew, lmul, rs1, rd) = {
 
   let requires_fixed_vlmax = rd == zreg & rs1 == zreg;
 
-  execute_vsetvl_type(ma, ta, sew, lmul, avl, requires_fixed_vlmax, rd)
+  execute_vsetvl_type(vtr[0 .. 0], ma, ta, sew, lmul, avl, requires_fixed_vlmax, rd)
 }
 
 
@@ -191,7 +207,7 @@ function clause execute VSETVL(rs2, rs1, rd) = {
 
   let requires_fixed_vlmax = rd == zreg & rs1 == zreg;
 
-  execute_vsetvl_type(vt[vma], vt[vta], vt[vsew], vt[vlmul], avl, requires_fixed_vlmax, rd)
+  execute_vsetvl_type(vt[altfmt], vt[vma], vt[vta], vt[vsew], vt[vlmul], avl, requires_fixed_vlmax, rd)
 }
 
 mapping clause assembly = VSETVL(rs2, rs1, rd)
@@ -205,11 +221,11 @@ mapping clause encdec = VSETIVLI(0b0 @ vtr, ma, ta, sew, lmul, uimm, rd)
   when currentlyEnabled(Ext_Zve32x)
 
 function clause execute VSETIVLI(vtr, ma, ta, sew, lmul, uimm, rd) = {
-  if vtr != zeros()
+  if vtr[2 .. 1] != zeros()
   then return handle_illegal_vtype(rd);
 
   let avl : xlenbits = zero_extend(uimm);
-  execute_vsetvl_type(ma, ta, sew, lmul, avl, false, rd)
+  execute_vsetvl_type(vtr[0 .. 0], ma, ta, sew, lmul, avl, false, rd)
 }
 
 mapping clause assembly = VSETIVLI(vtr, ma, ta, sew, lmul, uimm, rd)

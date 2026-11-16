@@ -13,9 +13,13 @@ union clause instruction = VFNCVTBF16_F_F_W : (bits(1), vregidx, vregidx)
 $[wavedrom "VFUNARY0 _ _ vfncvtbf16 OPFVV _ OP-V"]
 mapping clause encdec = VFNCVTBF16_F_F_W(vm, vs2, vd)
   <-> 0b010010 @ vm @ encdec_vreg(vs2) @ 0b11101 @ 0b001 @ encdec_vreg(vd) @ 0b1010111
-  when currentlyEnabled(Ext_Zvfbfmin) & get_sew() == 16
+  when (currentlyEnabled(Ext_Zvfbfmin)   & get_sew() == 16)
+     | (currentlyEnabled(Ext_Zvfofp8min) & get_sew() == 8)
 
 function clause execute (VFNCVTBF16_F_F_W(vm, vs2, vd)) = {
+  // Zvfofp8min: with SEW=8 this instruction converts BF16 to OFP8.
+  if get_sew() == 8 then return execute_vfncvt_to_ofp8(vm, vs2, vd, OFP8_FROM_BF16, false);
+
   let rm_3b    = fcsr[FRM];
   let SEW      = get_sew();
   let LMUL_pow = get_lmul_pow();
@@ -65,9 +69,13 @@ union clause instruction = VFWCVTBF16_F_F_V : (bits(1), vregidx, vregidx)
 $[wavedrom "VFUNARY0 _ _ vfwcvtbf16 OPFVV _ OP-V"]
 mapping clause encdec = VFWCVTBF16_F_F_V(vm, vs2, vd)
   <-> 0b010010 @ vm @ encdec_vreg(vs2) @ 0b01101 @ 0b001 @ encdec_vreg(vd) @ 0b1010111
-  when currentlyEnabled(Ext_Zvfbfmin) & get_sew() == 16
+  when (currentlyEnabled(Ext_Zvfbfmin)   & get_sew() == 16)
+     | (currentlyEnabled(Ext_Zvfofp8min) & get_sew() == 8)
 
 function clause execute (VFWCVTBF16_F_F_V(vm, vs2, vd)) = {
+  // Zvfofp8min: with SEW=8 this instruction converts OFP8 to BF16.
+  if get_sew() == 8 then return execute_vfwcvt_ofp8_to_bf16(vm, vs2, vd);
+
   let rm_3b    = fcsr[FRM];
   let SEW      = get_sew();
   let LMUL_pow = get_lmul_pow();

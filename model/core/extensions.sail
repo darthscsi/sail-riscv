@@ -421,6 +421,10 @@ function clause hartSupports(Ext_Zvabd) = sys_enable_experimental_extensions() &
 enum clause extension = Ext_Zvfbfmin
 mapping clause extensionName = Ext_Zvfbfmin <-> "zvfbfmin"
 function clause hartSupports(Ext_Zvfbfmin) = config extensions.Zvfbfmin.supported
+// Vector OFP8 Converts
+enum clause extension = Ext_Zvfofp8min
+mapping clause extensionName = Ext_Zvfofp8min <-> "zvfofp8min"
+function clause hartSupports(Ext_Zvfofp8min) = sys_enable_experimental_extensions() & config extensions.Zvfofp8min.supported
 // Vector BF16 widening mul-add
 enum clause extension = Ext_Zvfbfwma
 mapping clause extensionName = Ext_Zvfbfwma <-> "zvfbfwma"
@@ -795,6 +799,7 @@ function currentlyEnabled_measure(ext : extension) -> int =
     Ext_Zvbc => 3, // > Zve64x
     Ext_Zve64f => 3, // > Zve64x
     Ext_Zvfbfmin => 3, // > Zve32f
+    Ext_Zvfofp8min => 3, // > Zve32f
     Ext_Zvkb => 3, // > Zvbb
     Ext_Zvknhb => 3, // > Zve64x
 
@@ -937,6 +942,9 @@ let extensions_ordered_for_isa_string = [
   // Zvfh
   Ext_Zvfh,
   Ext_Zvfhmin,
+
+  // Zvfofp8min
+  Ext_Zvfofp8min,
 
   // Zvk
   Ext_Zvkb,

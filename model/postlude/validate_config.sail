@@ -702,6 +702,10 @@ private function check_misc_extension_dependencies() -> bool = {
     valid = false;
     print_endline("The Zvfbfmin extension is enabled but Zve32f is disabled: supporting Zvfbfmin requires Zve32f.")
   };
+  if (config extensions.Zvfofp8min.supported : bool) & not(hartSupports(Ext_Zve32f)) then {
+    valid = false;
+    print_endline("The Zvfofp8min extension is enabled but Zve32f is disabled: supporting Zvfofp8min requires Zve32f.")
+  };
   if (config extensions.Zvfbfwma.supported : bool) & (not(config extensions.Zfbfmin.supported : bool) | not(config extensions.Zvfbfmin.supported : bool)) then {
     valid = false;
     print_endline("The Zvfbfwma extension is enabled but either Zfbfmin or Zvfbfmin is disabled: supporting Zvfbfwma requires Zfbfmin and Zvfbfmin.")

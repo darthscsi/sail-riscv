@@ -551,12 +551,25 @@ extensions {
       files extensions/bfloat16/zfbfmin_insts.sail
     }
     Zvfbfmin {
-      requires sys, FD, V, bfloat16_core
+      requires sys, FD, V, bfloat16_core, Zvfofp8min_insts
       files extensions/bfloat16/zvfbfmin_insts.sail
     }
     Zvfbfwma {
       requires sys, FD, V, bfloat16_core
       files extensions/bfloat16/zvfbfwma_insts.sail
+    }
+  }
+
+  Zvfofp8min {
+    requires core
+
+    ofp8_core {
+      requires sys, FD, bfloat16_core
+      files extensions/Zvfofp8min/ofp8_utils.sail
+    }
+    Zvfofp8min_insts {
+      requires sys, FD, V, ofp8_core
+      files extensions/Zvfofp8min/zvfofp8min_insts.sail
     }
   }
 
